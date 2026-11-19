@@ -85,8 +85,9 @@
     shim.getResultsCount = function () { return call('getResultsCount', []); };
     shim.clearResults = function () { return call('clearResults', []); };
     shim.getLocalScripts = function () { return call('getLocalScripts', []); };
-    shim.getRangesList = function (filter) { return call('getRangesList', [filter]); };
-    shim.getProcList = function (filter) { return call('getProcList', [filter]); };
+    //可选参数 undefined 不能过桥 (会被 JSON 化成 null 使引擎侧 JSValue 判断失效), 空参直接省略
+    shim.getRangesList = function (filter) { return call('getRangesList', filter === undefined ? [] : [filter]); };
+    shim.getProcList = function (filter) { return call('getProcList', filter === undefined ? [] : [filter]); };
     shim.setTargetProc = function (pid) { return call('setTargetProc', [pid]); };
     shim.makeTweak = function (icon, html) { return call('makeTweak', [icon, html]); };
 
