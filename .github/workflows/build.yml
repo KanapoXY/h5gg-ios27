@@ -12,8 +12,17 @@ jobs:
 
       - name: Install Theos
         run: |
-          git clone --depth=1 https://github.com/theos/theos.git $HOME/theos
-          git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
+          if [ ! -d "$HOME/theos/.git" ]; then
+            git clone --depth=1 https://github.com/theos/theos.git $HOME/theos
+          else
+            echo "theos already present, reusing"
+          fi
+          mkdir -p $HOME/theos/sdks
+          if [ -z "$(ls -A $HOME/theos/sdks)" ]; then
+            git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
+          else
+            echo "sdks already present, reusing"
+          fi
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
       - name: Show available SDKs
