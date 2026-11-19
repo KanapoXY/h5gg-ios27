@@ -61,6 +61,9 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 @property BOOL usingCustomDialog;
 @property void(^reloadAction)(void);
 
+//file:// 二次导航放行标志 (防止 loadFileURL 触发的导航被 delegate 再次拦截造成死循环)
+@property BOOL loadingFileURL;
+
 -(void)handleMessage:(WKScriptMessage*)message;
 -(void)setAction:(NSString*)name callback:(id)block;
 -(void)loadRequest:(NSURLRequest*)request;
@@ -256,6 +259,11 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     @try {
         JSValue* fn = self.jscontext[api];
         if(fn.isUndefined) {
+            //内存引擎 API 是 h5gg JSExport 对象的方法 (h5gg.searchNumber 等), 全局未命中时回退到对象方法
+            JSValue* engine = self.jscontext[@"h5gg"];
+            if(!engine.isUndefined) fn = engine[api];
+        }
+        if(fn.isUndefined) {
             [self respond:cbid ok:NO data:[NSString stringWithFormat:@"unknown api: %@", api]];
             return;
         }
@@ -315,6 +323,13 @@ static inline dispatch_queue_t H5EngineQueue(void) {
         NSURL* url = [path hasPrefix:@"file://"] ? [NSURL URLWithString:path] : [NSURL fileURLWithPath:path];
         if(!url || ![[NSFileManager defaultManager] fileExistsAtPath:url.path]) {
             [self respond:cbid ok:NO data:[NSString stringWithFormat:@"script not found: %@", path]];
+            return;
+        }
+
+        //HTML 脚本: 加载到菜单 WebView 作为界面 (与旧引擎行为一致)
+        if([[url.pathExtension lowercaseString] isEqualToString:@"html"]) {
+            [self loadFileURLSafe:url];
+            [self respond:cbid ok:YES data:@"\"loaded\""];
             return;
         }
 
@@ -418,8 +433,37 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     self.dragableRect = rect;
 }
 
+#pragma mark - file:// 加载支持
+//WKWebView 禁止 loadRequest 与页面 location.href 加载本地文件, 必须用 loadFileURL 显式授权读取范围
+
+-(NSURL*)_h5ggReadAccessRootFor:(NSURL*)fileURL
+{
+    NSURL* dir = [fileURL URLByDeletingLastPathComponent];
+    //位于 .app 包内的页面, 授权整个包目录以便引用包内相对资源 (css/js/图片)
+    NSString* bundlePath = [[NSBundle mainBundle] bundlePath];
+    if([dir.path hasPrefix:bundlePath])
+        return [NSURL fileURLWithPath:bundlePath];
+    //包外文件 (用户选择的脚本等) 授权其所在目录
+    return dir;
+}
+
+-(void)loadFileURLSafe:(NSURL*)url
+{
+    NSLog(@"h5gg loadFileURLSafe: %@", url);
+    self.loadingFileURL = YES;
+    if(@available(iOS 9.0, *)) {
+        [self.webView loadFileURL:url allowingReadAccessToURL:[self _h5ggReadAccessRootFor:url]];
+    } else {
+        [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
+    }
+}
+
 -(void)loadRequest:(NSURLRequest*)request
 {
+    if(request.URL.isFileURL) {
+        [self loadFileURLSafe:request.URL];
+        return;
+    }
     [self.webView loadRequest:request];
 }
 
@@ -457,7 +501,14 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 #pragma mark - WKNavigationDelegate
 
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
-    if([navigationAction.request.URL.scheme isEqualToString:@"file"])
+    //loadFileURL 触发的二次导航直接放行, 防止拦截循环
+    if(self.loadingFileURL) {
+        self.loadingFileURL = NO;
+        decisionHandler(WKNavigationActionPolicyAllow);
+        return;
+    }
+
+    if(navigationAction.request.URL.isFileURL)
     {
         NSError* error=nil;
         NSString* html = [NSString stringWithContentsOfURL:navigationAction.request.URL encoding:NSASCIIStringEncoding error:&error];
@@ -470,6 +521,11 @@ static inline dispatch_queue_t H5EngineQueue(void) {
                 [TopShow alert:Localized(@"提示") message:Localized(@"该页面为CR换行符格式, 请修改为LF或CRLF换行符格式, 否则JS错误提示无法显示准确的行数!")];
             }
         }
+
+        //页面 location.href 或 loadRequest 发起的 file:// 导航被 WKWebView 拦截, 取消后改用 loadFileURL 重新加载
+        decisionHandler(WKNavigationActionPolicyCancel);
+        [self loadFileURLSafe:navigationAction.request.URL];
+        return;
     }
     decisionHandler(WKNavigationActionPolicyAllow);
 }
