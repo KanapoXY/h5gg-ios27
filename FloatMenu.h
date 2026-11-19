@@ -43,7 +43,7 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 @property (weak) FloatMenu* menu;
 @end
 
-@interface FloatMenu : UIView
+@interface FloatMenu : UIView <WKNavigationDelegate, WKUIDelegate>
 @property (nonatomic, strong) WKWebView* webView;
 @property NSTimer* frontTimer;
 
@@ -61,6 +61,7 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 @property BOOL usingCustomDialog;
 @property void(^reloadAction)(void);
 
+-(void)handleMessage:(WKScriptMessage*)message;
 -(void)setAction:(NSString*)name callback:(id)block;
 -(void)evalJS:(NSString*)code;                 //页面: 异步
 -(void)evalEngineJS:(NSString*)code;           //原生脚本引擎: 异步(内部串行)
@@ -405,7 +406,7 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     return [super hitTest:point withEvent:event];
 }
 
-- (BOOL)pointInside:(CGPoint)point withEvent:(nullable UIEvent *)event;
+- (BOOL)pointInside:(CGPoint)point withEvent:(nullable UIEvent *)event
 {
     if(self.touchableAll || CGRectContainsPoint(self.touchableRect, point))
         return [super pointInside:point withEvent:event];
