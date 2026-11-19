@@ -259,6 +259,55 @@ FloatMenu* initFloatMenu(UIWindow* win)
     h5gg = [[h5ggEngine alloc] init];
     //将h5gg内存搜索引擎添加到H5的JS环境中以便JS可以调用
     [floatH5 setAction:@"h5gg" callback:h5gg];
+
+    //页面桥接转发块: JSExport 实例方法被提取为 JSValue 后经 callWithArguments 调用会抛
+    //"self type check failed for Objective-C instance method", 用原生 block 转发绕开
+    //(invokeEngineApi 优先查全局, .js 脚本在引擎内直接调 h5gg.xxx 的标准 JSExport 路径不受影响)
+    [floatH5 setAction:@"require" callback:^BOOL(double minver) {
+        return [h5gg require:minver];
+    }];
+    [floatH5 setAction:@"setFloatTolerance" callback:^(NSString* value) {
+        [h5gg setFloatTolerance:value];
+    }];
+    [floatH5 setAction:@"searchNumber" callback:^(NSString* value, NSString* type, NSString* memoryFrom, NSString* memoryTo) {
+        [h5gg searchNumber:value param2:type param3:memoryFrom param4:memoryTo];
+    }];
+    [floatH5 setAction:@"searchNearby" callback:^(NSString* value, NSString* type, NSString* range) {
+        [h5gg searchNearby:value param2:type param3:range];
+    }];
+    [floatH5 setAction:@"getValue" callback:^NSString*(NSString* address, NSString* type) {
+        return [h5gg getValue:address param2:type];
+    }];
+    [floatH5 setAction:@"setValue" callback:^BOOL(NSString* address, NSString* value, NSString* type) {
+        return [h5gg setValue:address param2:value param3:type];
+    }];
+    [floatH5 setAction:@"editAll" callback:^(NSString* value, NSString* type) {
+        return [h5gg editAll:value param3:type];
+    }];
+    [floatH5 setAction:@"getResults" callback:^(int maxCount, int skipCount) {
+        return [h5gg getResults:maxCount param1:skipCount];
+    }];
+    [floatH5 setAction:@"getResultsCount" callback:^long(void) {
+        return [h5gg getResultsCount];
+    }];
+    [floatH5 setAction:@"clearResults" callback:^void(void) {
+        [h5gg clearResults];
+    }];
+    [floatH5 setAction:@"getLocalScripts" callback:^NSArray*(void) {
+        return [h5gg getLocalScripts];
+    }];
+    [floatH5 setAction:@"getRangesList" callback:^(JSValue* filter) {
+        return [h5gg getRangesList:filter];
+    }];
+    [floatH5 setAction:@"getProcList" callback:^(JSValue* filter) {
+        return [h5gg getProcList:filter];
+    }];
+    [floatH5 setAction:@"setTargetProc" callback:^BOOL(int pid) {
+        return [h5gg setTargetProc:pid];
+    }];
+    [floatH5 setAction:@"makeTweak" callback:^NSString*(NSString* icon, NSString* html) {
+        return [h5gg makeTweak:icon with:html];
+    }];
     
     //隐藏悬浮菜单, 已废弃, 保持旧版API兼容
     [floatH5 setAction:@"closeMenu" callback:^{
