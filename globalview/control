@@ -1,1 +1,9 @@
-Package size exceeded the configured limit of 50 MB. Try https://github.com/H5GG/H5GG/tree/main/globalview/control instead.
+Package: com.shadow.h5ggapp
+Name: H5GG
+Depends: mobilesubstrate
+Architecture: iphoneos-arm
+Description: Float On Screen for jailbroken devices(not compatible with iPad SlideOver/SplitView), tested on ios11~ios14 Discord https://discord.gg/FAs4MH7HMc
+Maintainer: Shadow-
+Author: Shadow-
+Section: System
+Version: 0
