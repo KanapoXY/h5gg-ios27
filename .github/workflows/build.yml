@@ -12,12 +12,8 @@ jobs:
 
       - name: Install Theos
         run: |
-          if [ ! -d "$HOME/theos/.git" ]; then
-            git clone --depth=1 https://github.com/theos/theos.git $HOME/theos
-          else
-            echo "theos already present, reusing"
-          fi
-          # theos 仓库自带的 sdks 占位目录不含真实 SDK，强制替换为官方 SDK 仓库
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          # 官方安装器不包含 iOS SDK，单独克隆官方 SDK 仓库
           rm -rf $HOME/theos/sdks
           git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
