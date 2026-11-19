@@ -37,7 +37,7 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p out
-          find theos -name "*.dylib" -not -path "*dSYM*" -exec cp {} out/ \;
+          find .theos -name "*.dylib" -not -path "*dSYM*" -exec cp {} out/ \;
           cp packages/*.deb out/ 2>/dev/null || true
           ls -la out/
 
