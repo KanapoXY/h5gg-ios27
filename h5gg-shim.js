@@ -113,6 +113,14 @@
     // ---- 脚本加载: .js 走原生 JSContext (保持旧脚本同步 API 完全兼容) ----
     shim.loadScript = function (path) { return call('loadScript', [path]); };
 
+    // ---- 窗口/悬浮按钮控制类 API: 转发到原生 actions ----
+    // 同时注册为 window 全局, 保证官方示例模板 (直接调用 setWindowDrag 等裸全局) 零改动兼容
+    ['setWindowRect', 'setWindowDrag', 'setWindowTouch', 'setWindowVisible',
+     'setButtonImage', 'setButtonOffset', 'closeMenu'].forEach(function (name) {
+        shim[name] = function () { return call(name, Array.prototype.slice.call(arguments)); };
+        if (window[name] === undefined) window[name] = shim[name];
+    });
+
     window.h5gg = shim;
 
     // 供原生主动调用的 alert 转发 (原生 jscontext 里的 alert 走这里)
