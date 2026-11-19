@@ -17,12 +17,9 @@ jobs:
           else
             echo "theos already present, reusing"
           fi
-          mkdir -p $HOME/theos/sdks
-          if [ -z "$(ls -A $HOME/theos/sdks)" ]; then
-            git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
-          else
-            echo "sdks already present, reusing"
-          fi
+          # theos 仓库自带的 sdks 占位目录不含真实 SDK，强制替换为官方 SDK 仓库
+          rm -rf $HOME/theos/sdks
+          git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
       - name: Show available SDKs
@@ -31,12 +28,15 @@ jobs:
       - name: Build dylib
         run: |
           export THEOS=$HOME/theos
-          make FINALPACKAGE=1
+          SDKVER=$(ls $THEOS/sdks | grep -E '^iPhoneOS([0-9]+\.?)+\.sdk$' | sed 's/^iPhoneOS//; s/\.sdk$//' | sort -V | tail -1)
+          echo "Using SDK: iPhoneOS$SDKVER.sdk"
+          make TARGET="iphone:${SDKVER}:11.4" FINALPACKAGE=1
 
       - name: Build deb package
         run: |
           export THEOS=$HOME/theos
-          make package FINALPACKAGE=1 || true
+          SDKVER=$(ls $THEOS/sdks | grep -E '^iPhoneOS([0-9]+\.?)+\.sdk$' | sed 's/^iPhoneOS//; s/\.sdk$//' | sort -V | tail -1)
+          make TARGET="iphone:${SDKVER}:11.4" package FINALPACKAGE=1 || true
 
       - name: Collect artifacts
         run: |
