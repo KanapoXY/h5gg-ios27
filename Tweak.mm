@@ -80,6 +80,8 @@ h5ggEngine* h5gg = NULL;
 NSThread* gWebThread=NULL;
 JSValue* gButtonAction=NULL;
 JSValue* gLayoutAction=NULL;
+//页面是否真正注册了 buttonAction 回调 (决定图标点击是转发给页面还是原生切换显隐)
+static BOOL gHasButtonAction=NO;
 
 void onScreenLayoutChange(CGSize size)
 {
@@ -180,7 +182,7 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
     dispatch_async(dispatch_get_main_queue(), ^{
         static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
             
-            if(PGVSharedData->enable && PGVSharedData->customButtonAction && PGVSharedData->floatBtnClick)
+            if(PGVSharedData->enable && PGVSharedData->customButtonAction && gHasButtonAction && PGVSharedData->floatBtnClick)
             {
                 NSLog(@"SetGlobalView=customButtonAction=%d", PGVSharedData->floatBtnClick);
                 
@@ -291,6 +293,7 @@ FloatMenu* initFloatMenu(UIWindow* win)
     
     [floatH5 setAction:@"setButtonAction" callback:^(JSValue* callback) {
         gButtonAction = callback;
+        gHasButtonAction = YES;
         gWebThread = [NSThread currentThread];
         PGVSharedData->customButtonAction = YES;
     }];
@@ -359,6 +362,7 @@ FloatMenu* initFloatMenu(UIWindow* win)
         gWebThread = nil;
         gButtonAction = nil;
         gLayoutAction = nil;
+        gHasButtonAction = NO; //页面重载后 evtTable 清空, 回退到原生显隐切换
     };
     
     
@@ -550,9 +554,11 @@ void initload()
     } else {
         //三方app中第一次点击图标时再加载H5菜单,防止部分APP不兼容H5导致闪退卡死
          initFloatButton(^(void) {
-             if(floatH5) {
+             if(floatH5 && gHasButtonAction) {
+                 //页面注册了按钮回调: 点击行为交给页面决定
                  [floatH5 firePageEvent:@"buttonAction" args:@[]];
              } else {
+                 //页面未注册: 原生直接切换菜单显隐 (官方菜单及大多数第三方菜单走这里)
                  bool show = floatWindow ? floatWindow.isHidden : YES;
                  NSLog(@"ButtonShowWindow=%d", show);
                  showFloatWindow(show);
