@@ -16,8 +16,9 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = H5GG
 
 H5GG_FILES = Tweak.mm ldid-master/ldid.cpp ldid-master/lookup2.c
-H5GG_CFLAGS = -fobjc-arc -fvisibility=hidden 
-H5GG_CCFLAGS = -fobjc-arc -fvisibility=hidden -std=c++11
+H5GG_CFLAGS = -fobjc-arc -fvisibility=hidden -Wno-macro-redefined -Wno-vla-cxx-extension
+H5GG_CCFLAGS = -fobjc-arc -fvisibility=hidden -std=c++11 -Wno-macro-redefined -Wno-vla-cxx-extension
+H5GG_CXXFLAGS = -fobjc-arc -fvisibility=hidden -std=c++11 -Wno-macro-redefined -Wno-vla-cxx-extension
 H5GG_LOGOS_DEFAULT_GENERATOR = internal
 
 include $(THEOS_MAKE_PATH)/tweak.mk
