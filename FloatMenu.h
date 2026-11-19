@@ -63,6 +63,9 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 
 -(void)handleMessage:(WKScriptMessage*)message;
 -(void)setAction:(NSString*)name callback:(id)block;
+-(void)loadRequest:(NSURLRequest*)request;
+-(void)loadHTMLString:(NSString*)string baseURL:(NSURL*)baseURL;
+-(void)setDragRect:(CGRect)rect;
 -(void)evalJS:(NSString*)code;                 //页面: 异步
 -(void)evalEngineJS:(NSString*)code;           //原生脚本引擎: 异步(内部串行)
 -(NSString*)getValueByName:(NSString*)name;
@@ -289,31 +292,29 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     //fn 占位 {__fn: n} -> 文件选择结果回写页面函数
     long fnid = 0;
     if([args.firstObject isKindOfClass:[NSDictionary class]])
-        fnid = [(NSDictionary*)args.firstObject[@"__fn"] longValue];
+        fnid = [(NSNumber*)args.firstObject[@"__fn"] longValue];
 
     NSArray* types = nil;
     if(args.count > 1 && [args[1] isKindOfClass:[NSArray class]]) types = args[1];
 
-    H5GG_WEAKSELF
     [TopShow filePicker:(types ?: @[@"public.executable", @"public.html"]) callback:^(NSString* path) {
         dispatch_async(dispatch_get_main_queue(), ^{
             NSString* js = [NSString stringWithFormat:@"window.__h5gg_fnresp(%ld, %@)", fnid,
-                            path ? [weakSelf jsString:path] : @"null"];
-            [weakSelf.webView evaluateJavaScript:js completionHandler:nil];
-            [weakSelf respond:cbid ok:YES data:nil];
+                            path ? [self jsString:path] : @"null"];
+            [self.webView evaluateJavaScript:js completionHandler:nil];
+            [self respond:cbid ok:YES data:nil];
         });
     }];
 }
 
 -(void)loadScriptFile:(NSString*)path cbid:(long)cbid
 {
-    H5GG_WEAKSELF
     dispatch_async(dispatch_get_main_queue(), ^{
-        if(!path) { [weakSelf respond:cbid ok:NO data:@"script path is empty"]; return; }
+        if(!path) { [self respond:cbid ok:NO data:@"script path is empty"]; return; }
 
         NSURL* url = [path hasPrefix:@"file://"] ? [NSURL URLWithString:path] : [NSURL fileURLWithPath:path];
         if(!url || ![[NSFileManager defaultManager] fileExistsAtPath:url.path]) {
-            [weakSelf respond:cbid ok:NO data:[NSString stringWithFormat:@"script not found: %@", path]];
+            [self respond:cbid ok:NO data:[NSString stringWithFormat:@"script not found: %@", path]];
             return;
         }
 
@@ -321,11 +322,11 @@ static inline dispatch_queue_t H5EngineQueue(void) {
             NSError* error = nil;
             NSString* code = [NSString stringWithContentsOfURL:url encoding:NSUTF8StringEncoding error:&error];
             if(!code) {
-                [weakSelf respond:cbid ok:NO data:[error localizedDescription]];
+                [self respond:cbid ok:NO data:[error localizedDescription]];
                 return;
             }
-            [weakSelf.jscontext evaluateScript:code withSourceURL:url];
-            [weakSelf respond:cbid ok:YES data:@"\"loaded\""];
+            [self.jscontext evaluateScript:code withSourceURL:url];
+            [self respond:cbid ok:YES data:@"\"loaded\""];
         });
     });
 }
@@ -415,6 +416,16 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 
 -(void)setDragRect:(CGRect)rect {
     self.dragableRect = rect;
+}
+
+-(void)loadRequest:(NSURLRequest*)request
+{
+    [self.webView loadRequest:request];
+}
+
+-(void)loadHTMLString:(NSString*)string baseURL:(NSURL*)baseURL
+{
+    [self.webView loadHTMLString:string baseURL:baseURL];
 }
 
 -(void)dragMe:(UIPanGestureRecognizer *)sender {
