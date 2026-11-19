@@ -110,6 +110,10 @@
         return call('pickScriptFile', [{ __fn: fnid }, types || undefined]);
     };
 
+    // 旧引擎把这两个注册为页面裸全局, 第三方菜单普遍直接调用, 必须注册到 window
+    if (window.setButtonAction === undefined) window.setButtonAction = shim.setButtonAction;
+    if (window.setLayoutAction === undefined) window.setLayoutAction = shim.setLayoutAction;
+
     // ---- 脚本加载: .js 走原生 JSContext (保持旧脚本同步 API 完全兼容) ----
     shim.loadScript = function (path) { return call('loadScript', [path]); };
 
