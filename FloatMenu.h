@@ -75,6 +75,8 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 -(void)firePageEvent:(NSString*)name args:(NSArray*)args;
 -(void)alert:(NSString*)message;
 -(void)loadScriptFile:(NSString*)path cbid:(long)cbid;
+-(NSDictionary*)engineExecute:(NSString*)api args:(NSArray*)args;
+-(NSString*)engineSyncBridge:(NSString*)payload;
 
 @end
 
@@ -253,8 +255,9 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     });
 }
 
-//通用 API: 转发到原生 JSContext (同步语义), 结果 JSON 回写页面
--(void)invokeEngineApi:(NSString*)api args:(NSArray*)args cbid:(long)cbid
+//引擎 API 统一执行体 (调用方必须已在 H5EngineQueue 上)
+//返回 @{ok:BOOL, data:NSString}, data 为返回值的 JSON 编码 (undefined -> NSNull)
+-(NSDictionary*)engineExecute:(NSString*)api args:(NSArray*)args
 {
     @try {
         JSValue* fn = self.jscontext[api];
@@ -264,10 +267,9 @@ static inline dispatch_queue_t H5EngineQueue(void) {
             if(!engine.isUndefined) fn = engine[api];
         }
         if(fn.isUndefined) {
-            [self respond:cbid ok:NO data:[NSString stringWithFormat:@"unknown api: %@", api]];
-            return;
+            return @{@"ok": @NO, @"data": [NSString stringWithFormat:@"unknown api: %@", api]};
         }
-        JSValue* ret = [fn callWithArguments:args];
+        JSValue* ret = [fn callWithArguments:args ?: @[]];
 
         NSString* json = nil;
         if(!(ret.isUndefined || ret.isNull)) {
@@ -280,10 +282,45 @@ static inline dispatch_queue_t H5EngineQueue(void) {
                 json = [ret toString];
             }
         }
-        [self respond:cbid ok:YES data:json];
+        return @{@"ok": @YES, @"data": json ?: (id)[NSNull null]};
     } @catch(NSException* e) {
-        [self respond:cbid ok:NO data:e.reason];
+        return @{@"ok": @NO, @"data": e.reason ?: @"engine exception"};
     }
+}
+
+//通用 API: 转发到原生 JSContext (同步语义), 结果 JSON 回写页面
+-(void)invokeEngineApi:(NSString*)api args:(NSArray*)args cbid:(long)cbid
+{
+    NSDictionary* r = [self engineExecute:api args:args];
+    [self respond:cbid ok:[r[@"ok"] boolValue] data:r[@"data"]];
+}
+
+//v6 同步桥: 页面 prompt("__h5gg_sync__...") -> 引擎 API 同步执行并返回 JSON
+//delegate 在主线程被调, 页面 JS 阻塞等待; 引擎调用在 H5EngineQueue 上完成
+//3 秒超时保护: 引擎队列被长脚本占用时返回错误而不是永久卡死 UI
+-(NSString*)engineSyncBridge:(NSString*)payload
+{
+    NSData* d = [payload dataUsingEncoding:NSUTF8StringEncoding];
+    NSDictionary* req = d ? [NSJSONSerialization JSONObjectWithData:d options:0 error:nil] : nil;
+    NSString* api = req[@"api"];
+    if(![api isKindOfClass:[NSString class]])
+        return @"{\"ok\":false,\"error\":\"bad sync request\"}";
+    NSArray* args = req[@"args"];
+    if(![args isKindOfClass:[NSArray class]]) args = @[];
+
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    __block NSDictionary* result = nil;
+    dispatch_async(H5EngineQueue(), ^{
+        if(!self.jscontext) [self setupEngineContext];
+        result = [self engineExecute:api args:args];
+        dispatch_semaphore_signal(sem);
+    });
+    long wait = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)));
+    if(wait != 0 || !result)
+        return @"{\"ok\":false,\"error\":\"h5gg sync bridge timeout (engine busy?)\"}";
+    NSData* out = [NSJSONSerialization dataWithJSONObject:result options:0 error:nil];
+    return out ? [[NSString alloc] initWithData:out encoding:NSUTF8StringEncoding]
+               : @"{\"ok\":false,\"error\":\"sync bridge encode failed\"}";
 }
 
 -(void)respond:(long)cbid ok:(BOOL)ok data:(NSString*)data
@@ -589,6 +626,14 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     defaultText:(NSString*)defaultText initiatedByFrame:(WKFrameInfo*)frame
     completionHandler:(void(^)(NSString* result))completionHandler
 {
+    //v6 同步桥: 前缀 __h5gg_sync__ 的 prompt 拦截为引擎同步调用, 不弹 UI
+    NSString* syncPrefix = @"__h5gg_sync__";
+    if([prompt hasPrefix:syncPrefix]) {
+        NSString* payload = [prompt substringFromIndex:syncPrefix.length];
+        completionHandler([self engineSyncBridge:payload]);
+        return;
+    }
+
     UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"H5GG" message:prompt
                                             preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField* textField){ textField.text = defaultText; }];
