@@ -109,7 +109,9 @@ static inline dispatch_queue_t H5EngineQueue(void) {
         WKUserContentController* ucc = [[WKUserContentController alloc] init];
 
         //注入桥接 shim (document start)
-        NSString* shim = [NSString stringWithUTF8String:(char*)gH5GG_SHIMData];
+        //前置版本号: WKWebView 页面无 JSContext, 拿不到引擎 ctx 的 h5gg_internel_version, 在 document start 直接写入页面全局
+        NSString* shim = [NSString stringWithFormat:@"window.h5gg_internel_version=\"%s\";\n", H5GG_VERSION_S];
+        shim = [shim stringByAppendingString:[NSString stringWithUTF8String:(char*)gH5GG_SHIMData]];
         WKUserScript* userScript = [[WKUserScript alloc] initWithSource:shim
                                                          injectionTime:WKUserScriptInjectionTimeAtDocumentStart
                                                       forMainFrameOnly:YES];
