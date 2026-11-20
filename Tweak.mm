@@ -573,26 +573,6 @@ void initFloatButton(void (^callback)(void))
 
     //将悬浮按钮添加到窗口上
     [window addSubview:floatBtn];
-
-    //v8.05 调试悬浮按钮: 独立于菜单显隐, 任何时候点击查看引擎调用日志
-    FloatButton* dbgBtn = [[FloatButton alloc] init];
-    dbgBtn.frame = CGRectMake(30, 86, 36, 36);
-    UIGraphicsImageRenderer* ren = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(72, 72)];
-    UIImage* dbgIcon = [ren imageWithActions:^(UIGraphicsImageRendererContext* c) {
-        [[UIColor colorWithWhite:0.12 alpha:1] setFill];
-        [c fillRect:CGRectMake(0, 0, 72, 72)];
-        [[UIColor colorWithRed:0.2 green:0.9 blue:0.2 alpha:1] setFill];
-        UIFont* f = [UIFont boldSystemFontOfSize:24];
-        NSAttributedString* s = [[NSAttributedString alloc] initWithString:@"LOG"
-            attributes:@{NSFontAttributeName:f, NSForegroundColorAttributeName:[UIColor colorWithRed:0.2 green:0.9 blue:0.2 alpha:1]}];
-        [s drawAtPoint:CGPointMake(9, 22)];
-    }];
-    [dbgBtn setIcon:dbgIcon];
-    [dbgBtn setAction:^{
-        if(floatH5) [floatH5 showDebugLogView];
-        else [TopShow alert:@"H5GG" message:@"请先点击悬浮球打开一次菜单\n(日志随菜单引擎创建)"];
-    }];
-    [window addSubview:dbgBtn];
 }
 
 void initload()
