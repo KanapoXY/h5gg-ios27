@@ -573,6 +573,14 @@ static inline dispatch_queue_t H5EngineQueue(void) {
         [TopShow alert:Localized(@"H5加载失败") message:[NSString stringWithFormat:@"%@",error]];
 }
 
+//临时阶段失败 (文件不可读/越权访问等): 原版未实现导致静默卡在"执行中"弹窗, 这里补上明确报错
+- (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    NSLog(@"h5gg didFailProvisionalNavigation: %@", error);
+    NSString* scheme = [[error.userInfo[NSURLErrorFailingURLErrorKey] scheme] lowercaseString];
+    if([scheme isEqualToString:@"file"] || [scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"])
+        [TopShow alert:Localized(@"H5加载失败") message:[NSString stringWithFormat:@"%@", error.userInfo[NSLocalizedDescriptionKey] ?: error]];
+}
+
 - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation {
     NSLog(@"webView didStartProvisionalNavigation=%@", webView);
 }
