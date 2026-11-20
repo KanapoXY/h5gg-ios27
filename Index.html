@@ -807,47 +807,6 @@ function onClickMakeTweak()
     }, ["public.image"]);
 }
 
-//v8.05 调试日志: 查看引擎层记录的所有 API 调用 (排查第三方菜单功能失效)
-function __dbgBridge(api)
-{
-    try {
-        var resp = prompt('__h5gg_sync__' + JSON.stringify({api:api, args:[]}));
-        var r = resp ? JSON.parse(resp) : null;
-        return (r && r.ok) ? (r.data || '') : ('bridge error: ' + ((r && r.error) || 'no response'));
-    } catch(e) { return 'error: ' + e.message; }
-}
-function onShowDbgLog()
-{
-    var log = __dbgBridge('__dbgGet');
-    var ov = document.getElementById('dbglog_overlay');
-    if(!ov){
-        ov = document.createElement('div');
-        ov.id = 'dbglog_overlay';
-        ov.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:#2f2;z-index:99999;overflow:auto;padding:8px;font:11px/1.5 monospace;';
-        ov.innerHTML = '<div style="position:sticky;top:0;background:#000;padding:4px 0;">'
-            + '<button onclick="__dbgCopyLog()">复制</button> '
-            + '<button onclick="__dbgClearLog()">清空日志</button> '
-            + '<button onclick="document.getElementById(\'dbglog_overlay\').style.display=\'none\'">关闭</button></div>'
-            + '<div id="dbglog_text" style="white-space:pre-wrap;"></div>';
-        document.body.appendChild(ov);
-    }
-    ov.style.display = 'block';
-    document.getElementById('dbglog_text').textContent = log;
-}
-function __dbgCopyLog()
-{
-    var ta = document.createElement('textarea');
-    ta.value = document.getElementById('dbglog_text').textContent;
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch(e) {}
-    document.body.removeChild(ta);
-}
-function __dbgClearLog()
-{
-    __dbgBridge('__dbgClear');
-    document.getElementById('dbglog_text').textContent = '(已清空)';
-}
 
 </script>
 
@@ -884,7 +843,6 @@ function __dbgClearLog()
 <button onclick="onShowLoadScript(true)">加载脚本</button>
 <button onclick="onClickMakeTweak()">制作插件</button>
 <br/>
-<button onclick="onShowDbgLog()">调试日志</button>
 <br/>
 邻近范围:<input id="nearby_range" style="width:78px"  value="0x100"/>
 <br/>
