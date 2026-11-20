@@ -580,12 +580,15 @@ function onClickLoadScript(url, type)
     $("#maskview_script").show();
     
     if(type=='h5' || (!type&&!/\.js$/.test(url.pathname))) {
-        //兜底: 若跳转被拦截或失败, 2.5s 后自动收起弹窗 (跳转成功则页面卸载, 定时器自动作废)
-        setTimeout(function(){
+        //直接走原生 loadScript (内部 loadFileURLSafe), 不依赖 location 跳转技巧
+        //本地文件无查询参数 (file:// 不支持 query, 随机参数会导致加载失败)
+        var target = url.href;
+        if(/^file:/i.test(target)) target = target.split('?')[0];
+        h5gg.loadScript(target).catch(function(e){
             $("#popup_progress").hide();
             $("#maskview_script").hide();
-        }, 2500);
-        window.location = url.href;
+            alert("加载失败: " + ((e && e.message) || e));
+        });
         return;
     }
     
