@@ -12,10 +12,12 @@ jobs:
 
       - name: Install Theos
         run: |
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          # 官方安装器不包含 iOS SDK，单独克隆官方 SDK 仓库
-          rm -rf $HOME/theos/sdks
+          # 手动安装, 绕开官方 install-theos 内部的 api.github.com 调用
+          # (install-sdk 走未认证 API, runner 共享 IP 限流 60次/h 经常耗尽导致 "api.github.com request failed")
+          # macOS 上 Theos 直接使用 Xcode 工具链, 无需额外下载 toolchain
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
           git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
+          brew list ldid >/dev/null 2>&1 || brew install ldid xz
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
       - name: Show available SDKs
