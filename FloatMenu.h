@@ -659,6 +659,14 @@ static inline dispatch_queue_t H5EngineQueue(void) {
         }
     }];
 
+    //触摸滚动修复: 部分菜单作者在滚动容器内的元素上设 touch-action:none (意图"防止页面滑动",
+    //副作用是把内部 overflow:auto 容器的触摸滚动也一并禁掉, 任何 WebView 都无法滑动)。
+    //此处扫描所有"可滚动的溢出容器", 把其内部 touch-action:none 的后代恢复为 pan-y,
+    //仅影响滚动容器内部, 容器外的 touch-action:none (如横滑组件) 保持原样。
+    //Vue 等框架动态渲染的内容靠定时重扫覆盖 (每2秒, 共2分钟后停止)。
+    static NSString* touchFixJS = @"(function(){function fix(){try{var all=document.querySelectorAll('*');var sc=[];for(var i=0;i<all.length;i++){var cs=getComputedStyle(all[i]);if((cs.overflowY==='auto'||cs.overflowY==='scroll')&&all[i].scrollHeight>all[i].clientHeight+2)sc.push(all[i]);}var n=0;for(var s=0;s<sc.length;s++){var kids=sc[s].querySelectorAll('*');for(var k=0;k<kids.length;k++){if(getComputedStyle(kids[k]).touchAction==='none'){kids[k].style.setProperty('touch-action','pan-y','important');n++;}}}return n;}catch(e){return 0;}}fix();var t=0;var iv=setInterval(function(){fix();if(++t>60)clearInterval(iv);},2000);})();";
+    [self.webView evaluateJavaScript:touchFixJS completionHandler:nil];
+
     if(self.reloadAction) self.reloadAction();
 }
 
