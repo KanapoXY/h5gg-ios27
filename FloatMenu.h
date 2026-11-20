@@ -43,7 +43,7 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 @property (weak) FloatMenu* menu;
 @end
 
-@interface FloatMenu : UIView <WKNavigationDelegate, WKUIDelegate>
+@interface FloatMenu : UIView <WKNavigationDelegate, WKUIDelegate, UIGestureRecognizerDelegate>
 @property (nonatomic, strong) WKWebView* webView;
 @property NSTimer* frontTimer;
 
@@ -139,6 +139,9 @@ static inline dispatch_queue_t H5EngineQueue(void) {
         [self addSubview:self.webView];
 
         UIPanGestureRecognizer* drag = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dragMe:)];
+        //只在拖动区内识别: 否则整个窗口的滑动都会被本手势取消触摸 (cancelsTouchesInView 默认 YES),
+        //导致第三方菜单网页内部的 overflow 滚动容器 (如侧栏列表) 无法滑动
+        drag.delegate = self;
         [self addGestureRecognizer:drag];
 
         //初始化原生脚本引擎(串行队列上惰性创建 JSContext)
@@ -506,6 +509,17 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 
 -(void)setDragRect:(CGRect)rect {
     self.dragableRect = rect;
+}
+
+//拖动手势仅起始于 dragableRect 时才识别; 区外的滑动立即失败, 触摸完整交给网页,
+//保证页面内部滚动容器 (侧栏列表等) 与原生拖动互不干扰
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gr
+{
+    if(gr.view == self) {
+        CGPoint p = [(UIPanGestureRecognizer*)gr locationInView:self];
+        return CGRectContainsPoint(self.dragableRect, p);
+    }
+    return YES;
 }
 
 #pragma mark - file:// 加载支持
