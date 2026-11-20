@@ -414,8 +414,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
         var checkprocs = function()
         {
-            h5gg.getProcList().then(function(procs)
-            {
+            (function(procs){
             if(procs)  //不为空(null)说明是具有跨进程权限
             {
                 refreshProcList(procs);
@@ -430,11 +429,11 @@ document.addEventListener("DOMContentLoaded", function(){
 
                 setInterval(function(){
                     if($("#popup_proclist").is(":visible"))
-                        h5gg.getProcList().then(function(pl){ refreshProcList(pl||[]); });
+                        (function(pl){ refreshProcList(pl||[]); })(h5gg.getProcList());
 
                     if($("#procname").attr('pid'))
                     {
-                        h5gg.getProcList().then(function(procs){
+                        (function(procs){
                         var alive = false;
                         for(var i=0; i<(procs||[]).length; i++) {
                             if(procs[i].pid == $("#procname").attr('pid')) {
@@ -448,7 +447,7 @@ document.addEventListener("DOMContentLoaded", function(){
                             $("#procname").removeAttr('pid');
                             $("#procname").text('');
                         }
-                        });
+                        })(h5gg.getProcList());
                     }
 
                 }, 1500);
@@ -456,7 +455,7 @@ document.addEventListener("DOMContentLoaded", function(){
             } else  {
                 $("#crossproc").hide();
             }
-            });
+            })(h5gg.getProcList());
         }; //end of checkprocs
         
         checkprocs();
@@ -477,17 +476,17 @@ document.addEventListener("DOMContentLoaded", function(){
         //读取该地址最新数据
         if(typeof h5gg!='undefined')
         {
-            h5gg.getValue(address, h5ggType(datatype)).then(function(v){
+            (function(v){
                 datavalue = v;
                 showPopView("&nbsp;&nbsp;Edit&nbsp;&nbsp;", function(type, value){
-                    h5gg.setValue(address, value, h5ggType(type)).then(function(ok){
+                    (function(ok){
                         if(!ok) {
                             alert("The modification failed, the address may be invalid!");
                         }
                         onClickRefreshResults();
-                    });
+                    })(h5gg.setValue(address, value, h5ggType(type)));
                 }, datatype, datavalue);
-            });
+            })(h5gg.getValue(address, h5ggType(datatype)));
         } else {
             showPopView("&nbsp;&nbsp;Edit&nbsp;&nbsp;", function(type, value){
                 onClickRefreshResults();
@@ -508,8 +507,7 @@ function refreshProcList(procs)
         {
             var pid = $(this).attr('pid');
             var ptext = $(this).text();
-            h5gg.setTargetProc(pid).then(function(ok)
-            {
+            (function(ok){
                 if(!ok) {
                     alert("Cannot Select Target!");
                     return;
@@ -521,7 +519,7 @@ function refreshProcList(procs)
                 $("#procname").text(ptext);
                 $("#popup_proclist").hide();
                 $("#maskview").hide();
-            });
+            })(h5gg.setTargetProc(pid));
         });
         
         $("#proctable").append(btn);
@@ -532,8 +530,7 @@ function refreshLocalSrcipts()
 {
     $("table#localjslist tr").remove();
 
-    h5gg.getLocalScripts().then(function(jsfiles)
-    {
+    (function(jsfiles){
         jsfiles = jsfiles || [];
 
         setTimeout(function(){
@@ -549,7 +546,7 @@ function refreshLocalSrcipts()
             $("table#localjslist tbody").append(row);
         }
         }, 300);
-    });
+    })(h5gg.getLocalScripts());
 }
 
 function onShowLoadScript(show)
@@ -674,8 +671,7 @@ function loadResults(from, count)
     var maxCount = count;
     var skipCount = from;
     
-    h5gg.getResults(maxCount, skipCount).then(function(results)
-    {
+    (function(results){
         results = results || [];
 
         for(var i=0; i<results.length; i++)
@@ -686,7 +682,7 @@ function loadResults(from, count)
 
             $("table#resultList tbody").append(row);
         }
-    });
+    })(h5gg.getResults(maxCount, skipCount));
 }
 
 function onClickRefreshResults(clean)
@@ -698,8 +694,7 @@ function onClickRefreshResults(clean)
        $("table#resultList").attr("currentCount", 0);
    }
 
-    h5gg.getResultsCount().then(function(count)
-    {
+    (function(count){
         $("#results_count").text("Results Count: "+count);
         $("#results_count").show();
 
@@ -710,7 +705,7 @@ function onClickRefreshResults(clean)
         }
 
         loadResults(0, currentCount);
-    });
+    })(h5gg.getResultsCount());
 }
 
 function loadMoreResults() {
@@ -746,10 +741,10 @@ function onClickEditAll()
     
     showPopView("EditAll", function(type, value){
 
-        h5gg.editAll(value, h5ggType(type)).then(function(count){
+        (function(count){
             onClickRefreshResults();
             alert("Success to modify count: "+count);
-        });
+        })(h5gg.editAll(value, h5ggType(type)));
     });
 }
 
@@ -761,9 +756,9 @@ function onClickSearchNumber()
 
         var memoryFrom = $("input#range_min").val();
         var memoryTo = $("input#range_max").val();
-        h5gg.searchNumber(value, h5ggType(type), memoryFrom, memoryTo).then(function(){
+        (function(){
             onClickRefreshResults(true);
-        });
+        })(h5gg.searchNumber(value, h5ggType(type), memoryFrom, memoryTo));
     });
 }
 
@@ -780,9 +775,9 @@ function onClickSearchNearby()
         h5gg.setFloatTolerance($("#float_tolerance").val());
 
         var nearbyRange = $("input#nearby_range").val();
-        h5gg.searchNearby(value, h5ggType(type), nearbyRange).then(function(){
+        (function(){
             onClickRefreshResults(true);
-        });
+        })(h5gg.searchNearby(value, h5ggType(type), nearbyRange));
     });
 }
     
@@ -795,9 +790,9 @@ function onClickMakeTweak()
         
         h5gg.pickScriptFile(function(html) {
 
-            h5gg.makeTweak(icon, html).then(function(result) {
+            (function(result){
                 alert(result);
-            });
+            })(h5gg.makeTweak(icon, html));
 
         }, ["public.html"]);
         
