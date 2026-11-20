@@ -380,6 +380,29 @@ static inline dispatch_queue_t H5EngineQueue(void) {
                 self.loadingFileURL = NO;
                 [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
             }
+
+            //窗口尺寸自适应: 第三方菜单多为全屏设计 (viewport=device-width 且不调用 setWindowRect),
+            //在小窗口里会布局溢出裁切; 加载外部菜单时自动放大到近全屏, 加载内置 Index 时还原
+            //自带 setWindowRect 的菜单会在页面加载后自行改回尺寸, 不受影响
+            static CGRect s_savedFrame = CGRectZero;
+            NSString* name = url.lastPathComponent ?: @"";
+            BOOL isOwnUI = [name hasPrefix:@"Index"];
+            if(!isOwnUI) {
+                if(CGRectEqualToRect(s_savedFrame, CGRectZero)) s_savedFrame = self.frame;
+                CGRect b = self.window ? self.window.bounds : CGRectZero;
+                if(b.size.width > 0 && b.size.height > 0) {
+                    CGRect full = CGRectMake(2, 24, b.size.width-4, b.size.height-48);
+                    if(!CGRectEqualToRect(full, self.frame)) {
+                        self.frame = full;
+                        PGVSharedData->floatMenuRect = full;
+                    }
+                }
+            } else if(!CGRectEqualToRect(s_savedFrame, CGRectZero)) {
+                self.frame = s_savedFrame;
+                PGVSharedData->floatMenuRect = s_savedFrame;
+                s_savedFrame = CGRectZero;
+            }
+
             [self respond:cbid ok:YES data:@"\"loaded\""];
             return;
         }
