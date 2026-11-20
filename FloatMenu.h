@@ -359,19 +359,32 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         if(!path) { [self respond:cbid ok:NO data:@"script path is empty"]; return; }
 
-        NSURL* url = [path hasPrefix:@"file://"] ? [NSURL URLWithString:path] : [NSURL fileURLWithPath:path];
-        if(!url || ![[NSFileManager defaultManager] fileExistsAtPath:url.path]) {
+        //按 scheme 解析: file:// 与 http(s):// 走 URL 解析, 其余视为本地路径
+        //v7.99 回归修复: 此前 http(s) 链接被当作本地路径做 fileExistsAtPath 检查, 导致网络菜单报 script not found
+        NSURL* url = nil;
+        if([path hasPrefix:@"file://"] || [path hasPrefix:@"http://"] || [path hasPrefix:@"https://"])
+            url = [NSURL URLWithString:path];
+        else
+            url = [NSURL fileURLWithPath:path];
+        if(!url || (url.isFileURL && ![[NSFileManager defaultManager] fileExistsAtPath:url.path])) {
             [self respond:cbid ok:NO data:[NSString stringWithFormat:@"script not found: %@", path]];
             return;
         }
 
         //HTML 脚本: 加载到菜单 WebView 作为界面 (与旧引擎行为一致)
         if([[url.pathExtension lowercaseString] isEqualToString:@"html"]) {
-            [self loadFileURLSafe:url];
+            if(url.isFileURL) {
+                [self loadFileURLSafe:url];
+            } else {
+                //远程菜单: 直接导航, decidePolicyFor 对非 file 导航放行, didCommitNavigation 会启用滚动
+                self.loadingFileURL = NO;
+                [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
+            }
             [self respond:cbid ok:YES data:@"\"loaded\""];
             return;
         }
 
+        //JS 脚本: 读取/下载后送引擎执行 (stringWithContentsOfURL 同时支持本地与远程)
         dispatch_async(H5EngineQueue(), ^{
             NSError* error = nil;
             NSString* code = [NSString stringWithContentsOfURL:url encoding:NSUTF8StringEncoding error:&error];
