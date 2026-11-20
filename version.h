@@ -1,2 +1,2 @@
-#define H5GG_VERSION 7.99
-#define H5GG_VERSION_S "7.99"
+#define H5GG_VERSION 8.00
+#define H5GG_VERSION_S "8.00"
