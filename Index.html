@@ -580,6 +580,11 @@ function onClickLoadScript(url, type)
     $("#maskview_script").show();
     
     if(type=='h5' || (!type&&!/\.js$/.test(url.pathname))) {
+        //兜底: 若跳转被拦截或失败, 2.5s 后自动收起弹窗 (跳转成功则页面卸载, 定时器自动作废)
+        setTimeout(function(){
+            $("#popup_progress").hide();
+            $("#maskview_script").hide();
+        }, 2500);
         window.location = url.href;
         return;
     }
