@@ -75,6 +75,7 @@ static inline dispatch_queue_t H5EngineQueue(void) {
 -(NSString*)getValueByName:(NSString*)name;
 -(void)firePageEvent:(NSString*)name args:(NSArray*)args;
 -(void)alert:(NSString*)message;
+-(void)showDebugLogView;
 -(void)loadScriptFile:(NSString*)path cbid:(long)cbid;
 -(NSDictionary*)engineExecute:(NSString*)api args:(NSArray*)args;
 -(NSDictionary*)engineExecuteInner:(NSString*)api args:(NSArray*)args;
@@ -511,6 +512,79 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     [ModalShow alert:@"H5GG" message:message InWindow:self.window];
     dispatch_async(dispatch_get_main_queue(), ^{ [self.superview bringSubviewToFront:self]; });
 }
+
+//v8.05 调试日志查看器: 原生浮层, 不依赖当前 WebView 页面 (第三方菜单内也可随时查看)
+-(void)showDebugLogView
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow* host = self.window ?: _h5ggKeyWindow();
+        if(!host) return;
+
+        NSString* log = self.debugLog;
+        if(!(log.length)) log = @"(空) 暂无引擎调用记录\n\n打开任意菜单并操作后, 引擎层记录的所有 API 调用\n(时间 | 函数名(参数) => 结果) 会保存在这里";
+
+        UIView* overlay = [[UIView alloc] initWithFrame:host.bounds];
+        overlay.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.88];
+        overlay.tag = 0x0D6C0;
+
+        UITextView* tv = [[UITextView alloc] initWithFrame:CGRectMake(8, 58, host.bounds.size.width-16, host.bounds.size.height-110)];
+        tv.backgroundColor = [UIColor clearColor];
+        tv.textColor = [UIColor colorWithRed:0.2 green:0.9 blue:0.2 alpha:1];
+        tv.font = [UIFont fontWithName:@"Menlo" size:11] ?: [UIFont systemFontOfSize:11];
+        tv.editable = NO;
+        tv.tag = 0x0D6C1;
+        tv.text = log;
+        [overlay addSubview:tv];
+
+        UIButton* closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        closeBtn.frame = CGRectMake(host.bounds.size.width-84, 12, 72, 36);
+        [closeBtn setTitle:@"关闭" forState:UIControlStateNormal];
+        [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        closeBtn.backgroundColor = [UIColor colorWithWhite:0.25 alpha:1];
+        closeBtn.layer.cornerRadius = 6;
+        [closeBtn addTarget:self action:@selector(_dbgClose) forControlEvents:UIControlEventTouchUpInside];
+        [overlay addSubview:closeBtn];
+
+        UIButton* copyBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        copyBtn.frame = CGRectMake(16, 12, 80, 36);
+        [copyBtn setTitle:@"复制全部" forState:UIControlStateNormal];
+        [copyBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        copyBtn.backgroundColor = [UIColor colorWithWhite:0.25 alpha:1];
+        copyBtn.layer.cornerRadius = 6;
+        [copyBtn addTarget:self action:@selector(_dbgCopy) forControlEvents:UIControlEventTouchUpInside];
+        [overlay addSubview:copyBtn];
+
+        UIButton* clearBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        clearBtn.frame = CGRectMake(106, 12, 80, 36);
+        [clearBtn setTitle:@"清空日志" forState:UIControlStateNormal];
+        [clearBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        clearBtn.backgroundColor = [UIColor colorWithWhite:0.25 alpha:1];
+        clearBtn.layer.cornerRadius = 6;
+        [clearBtn addTarget:self action:@selector(_dbgClearBtn) forControlEvents:UIControlEventTouchUpInside];
+        [overlay addSubview:clearBtn];
+
+        [host addSubview:overlay];
+    });
+}
+-(void)_dbgClose
+{
+    UIWindow* host = self.window ?: _h5ggKeyWindow();
+    [[host viewWithTag:0x0D6C0] removeFromSuperview];
+}
+-(void)_dbgCopy
+{
+    UIWindow* host = self.window ?: _h5ggKeyWindow();
+    UITextView* tv = (UITextView*)[host viewWithTag:0x0D6C1];
+    UIPasteboard.generalPasteboard.string = tv.text;
+}
+-(void)_dbgClearBtn
+{
+    self.debugLog = nil;
+    UIWindow* host = self.window ?: _h5ggKeyWindow();
+    UITextView* tv = (UITextView*)[host viewWithTag:0x0D6C1];
+    tv.text = @"(已清空)";
+}
+-(void)_dbgNoop {}
 
 -(BOOL)confirm:(NSString*)message
 {
