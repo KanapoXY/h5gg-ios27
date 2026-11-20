@@ -560,8 +560,12 @@ static inline dispatch_queue_t H5EngineQueue(void) {
         }
 
         //页面 location.href 或 loadRequest 发起的 file:// 导航被 WKWebView 拦截, 取消后改用 loadFileURL 重新加载
+        //注意: decidePolicyFor 回调内同步发起新导航会被 WKWebView 静默忽略 (旧导航未终结),
+        //必须延迟到下一个 runloop 再加载, 否则表现为无跳转无报错
         decisionHandler(WKNavigationActionPolicyCancel);
-        [self loadFileURLSafe:navigationAction.request.URL];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self loadFileURLSafe:navigationAction.request.URL];
+        });
         return;
     }
     decisionHandler(WKNavigationActionPolicyAllow);
