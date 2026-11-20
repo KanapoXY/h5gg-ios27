@@ -1,2 +1,2 @@
-#define H5GG_VERSION 8.02
-#define H5GG_VERSION_S "8.02"
+#define H5GG_VERSION 8.03
+#define H5GG_VERSION_S "8.03"
