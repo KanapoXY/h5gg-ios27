@@ -591,6 +591,14 @@ static inline dispatch_queue_t H5EngineQueue(void) {
     NSLog(@"webView didStartProvisionalNavigation=%@", webView);
 }
 
+//滚动自适应: 包内自带 Index 菜单保持禁用滚动 (原版行为, 兼容窗口拖动);
+//外部加载的页面 (用户脚本/网络菜单) 启用整页滚动, 否则依赖 body 滚动的第三方菜单无法滑动
+- (void)webView:(WKWebView *)webView didCommitNavigation:(WKNavigation *)navigation {
+    NSURL* url = webView.URL;
+    BOOL bundled = url.isFileURL && [url.path hasPrefix:[[NSBundle mainBundle] bundlePath]];
+    webView.scrollView.scrollEnabled = bundled ? NO : YES;
+}
+
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
     NSLog(@"webView didFinishNavigation=%@", webView);
 
